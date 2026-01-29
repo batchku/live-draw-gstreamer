@@ -19,6 +19,7 @@
 *~
 .DS_Store
 .clangd
+.cache/
 
 # Profiling and debugging
 *.perf
@@ -55,6 +56,12 @@ Thumbs.db
 *.temp
 .venv
 venv/
+
+# Atlas logs
+.atlas/logs/
+
+# Local build dirs
+/builddir/
 
 # Meson private files
 meson-private/
