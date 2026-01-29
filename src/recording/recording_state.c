@@ -31,13 +31,13 @@ RecordingState *recording_state_init(void)
     }
 
     /* Initialize all keys to not recording */
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 20; i++) {
         state->is_recording[i] = FALSE;
         state->record_start_time[i] = 0;
         state->record_duration_us[i] = 0;
     }
 
-    /* Start cell assignment at index 0 (maps to cell 2 in grid) */
+    /* Start layer assignment at index 0 (maps to layer 1) */
     state->current_cell_index = 0;
 
     LOG_INFO("Recording state initialized");
@@ -48,7 +48,7 @@ RecordingState *recording_state_init(void)
  * recording_on_key_press - Handle keyboard key press event
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * When a key is pressed:
  * 1. Mark the key as recording
@@ -57,7 +57,7 @@ RecordingState *recording_state_init(void)
  * 4. Provide visual/auditory feedback
  *
  * Multiple simultaneous key presses are handled independently.
- * Key presses for keys outside 1-9 range are silently ignored.
+ * Key presses for keys outside 1-20 range are silently ignored.
  */
 void recording_on_key_press(RecordingState *state, int key_number)
 {
@@ -66,13 +66,13 @@ void recording_on_key_press(RecordingState *state, int key_number)
         return;
     }
 
-    /* Validate key number is in range 1-9 */
-    if (key_number < 1 || key_number > 9) {
-        LOG_DEBUG("recording_on_key_press: key %d outside 1-9 range, ignoring", key_number);
+    /* Validate key number is in range 1-20 */
+    if (key_number < 1 || key_number > 20) {
+        LOG_DEBUG("recording_on_key_press: key %d outside 1-20 range, ignoring", key_number);
         return;
     }
 
-    int key_index = key_number - 1; /* Convert 1-9 to 0-8 array index */
+    int key_index = key_number - 1; /* Convert 1-20 to 0-19 array index */
 
     /* Check if already recording on this key */
     if (state->is_recording[key_index]) {
@@ -97,7 +97,7 @@ void recording_on_key_press(RecordingState *state, int key_number)
  * recording_on_key_release - Handle keyboard key release event
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * When a key is released:
  * 1. Mark the key as not recording
@@ -115,13 +115,13 @@ void recording_on_key_release(RecordingState *state, int key_number)
         return;
     }
 
-    /* Validate key number is in range 1-9 */
-    if (key_number < 1 || key_number > 9) {
-        LOG_DEBUG("recording_on_key_release: key %d outside 1-9 range, ignoring", key_number);
+    /* Validate key number is in range 1-20 */
+    if (key_number < 1 || key_number > 20) {
+        LOG_DEBUG("recording_on_key_release: key %d outside 1-20 range, ignoring", key_number);
         return;
     }
 
-    int key_index = key_number - 1; /* Convert 1-9 to 0-8 array index */
+    int key_index = key_number - 1; /* Convert 1-20 to 0-19 array index */
 
     /* Check if this key is currently recording */
     if (!state->is_recording[key_index]) {
@@ -157,7 +157,7 @@ void recording_on_key_release(RecordingState *state, int key_number)
  * recording_is_recording - Query if a key is currently recording
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * Returns: TRUE if the key is currently being held and recording, FALSE otherwise
  */
@@ -168,7 +168,7 @@ gboolean recording_is_recording(RecordingState *state, int key_number)
         return FALSE;
     }
 
-    if (key_number < 1 || key_number > 9) {
+    if (key_number < 1 || key_number > 20) {
         return FALSE;
     }
 
@@ -179,7 +179,7 @@ gboolean recording_is_recording(RecordingState *state, int key_number)
  * recording_get_duration - Get duration of a recorded segment
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * Returns: Duration in microseconds, or 0 if not recorded yet
  */
@@ -190,7 +190,7 @@ guint64 recording_get_duration(RecordingState *state, int key_number)
         return 0;
     }
 
-    if (key_number < 1 || key_number > 9) {
+    if (key_number < 1 || key_number > 20) {
         return 0;
     }
 
@@ -203,12 +203,12 @@ guint64 recording_get_duration(RecordingState *state, int key_number)
  * @state: Recording state tracker
  *
  * Implements circular cell assignment logic:
- * - Cell assignment starts at index 0 (cell 2 in grid)
+ * - Layer assignment starts at index 0 (layer 1)
  * - After each recording, advance to next index
- * - After cell 8 (cell 10 in grid), wrap around to 0 (cell 2)
- * - This creates a circular buffer of 9 cells for recordings
+ * - After layer 19 (layer 20), wrap around to 0 (layer 1)
+ * - This creates a circular buffer of 20 layers for recordings
  *
- * Returns: Cell index (0-8) for the next recording
+ * Returns: Layer index (0-19) for the next recording
  */
 gint recording_assign_next_cell(RecordingState *state)
 {
@@ -220,7 +220,7 @@ gint recording_assign_next_cell(RecordingState *state)
     gint assigned_cell = state->current_cell_index;
 
     /* Advance to next cell (circular) */
-    state->current_cell_index = (state->current_cell_index + 1) % 9;
+    state->current_cell_index = (state->current_cell_index + 1) % 20;
 
     LOG_DEBUG("recording_assign_next_cell: assigned cell index %d, next is %d", assigned_cell,
               state->current_cell_index);

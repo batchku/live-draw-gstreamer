@@ -2,6 +2,7 @@
 #define PIPELINE_BUILDER_H
 
 #include <gst/gst.h>
+#include "../app/app_config.h"
 
 /**
  * Callback function type for pipeline bus messages.
@@ -17,12 +18,12 @@ typedef void (*PipelineMessageCallback)(const char *type, const char *message);
  * Manages the main GStreamer pipeline with:
  * - Camera source input
  * - Live queue for cell 1 (GPU memory buffer)
- * - Nine record bins (one per key 1-9)
- * - Nine playback bins (created dynamically)
- * - Videomixer compositor for 10-cell grid layout with proper pad configuration:
- *   * Cell 1 (pad 0): Live feed, xpos=0, zorder=0
- *   * Cells 2-10 (pads 1-9): Playback loops, xpos=320-2880, zorder=1-9
- *   * All pads: ypos=0, width=320, alpha=1.0
+ * - 20 record bins (one per key 1-20)
+ * - 20 playback bins (created dynamically)
+ * - Videomixer compositor for 11x2 grid layout with proper pad configuration:
+ *   * Live feed: row 0, col 0 (xpos=0, ypos=0, zorder=0)
+ *   * Layers 1-10: row 0, cols 1-10
+ *   * Layers 11-20: row 1, cols 1-10
  * - osxvideosink for window rendering
  *
  * Note: record_bins are opaque pointers to RecordBin structures
@@ -33,13 +34,13 @@ typedef struct {
     GstElement *live_queue;         /**< Queue for live feed (cell 1) */
     GstElement *live_caps;          /**< Capsfilter for live feed format */
     GstElement *live_tee;           /**< Tee element to split live stream */
-    gpointer record_bins[9];        /**< Record bins for keys 1-9 (opaque RecordBin pointers) */
-    GstElement *playback_bins[9];   /**< Playback bins (created dynamically) */
-    GstElement *playback_queues[9]; /**< Queues for playback bins */
-    GstElement *preview_bins[9];    /**< Live preview bins for cells 2-10 (while recording) */
-    GstPad *preview_tee_pads[9];    /**< Tee pads for live preview connections */
-    GstPad *cell_sink_pads[9];      /**< Videomixer sink pads for cells 2-10 (pre-allocated) */
-    GstElement *videomixer;         /**< Videomixer compositor for 10-cell grid */
+    gpointer record_bins[TOTAL_LAYERS];        /**< Record bins for keys 1-20 */
+    GstElement *playback_bins[TOTAL_LAYERS];   /**< Playback bins (created dynamically) */
+    GstElement *playback_queues[TOTAL_LAYERS]; /**< Queues for playback bins */
+    GstElement *preview_bins[TOTAL_LAYERS];    /**< Live preview bins while recording */
+    GstPad *preview_tee_pads[TOTAL_LAYERS];    /**< Tee pads for live preview connections */
+    GstPad *cell_sink_pads[TOTAL_LAYERS];      /**< Videomixer sink pads for layers */
+    GstElement *videomixer;         /**< Videomixer compositor for 11x2 grid */
     GstElement *videoconvert;       /**< Format converter for videomixer → osxvideosink */
     GstElement *composite_caps;     /**< Capsfilter for format conversion to osxvideosink */
     GstElement *osxvideosink;       /**< OS X video sink for window rendering */

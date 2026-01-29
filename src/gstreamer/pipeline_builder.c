@@ -15,6 +15,20 @@
 #include <stdio.h>
 #include <string.h>
 
+static gboolean pipeline_layer_position(int layer_number, gint *xpos, gint *ypos)
+{
+    if (layer_number < 1 || layer_number > TOTAL_LAYERS || !xpos || !ypos) {
+        return FALSE;
+    }
+
+    int layer_index = layer_number - 1;
+    int col = (layer_index % LAYER_COLUMNS) + 1; // columns 1-10, col 0 reserved for live
+    int row = layer_index / LAYER_COLUMNS;       // rows 0-1
+
+    *xpos = col * CELL_WIDTH_PX;
+    *ypos = row * CELL_HEIGHT_PX;
+    return TRUE;
+}
 /**
  * Static bus watch handler to process GStreamer bus messages.
  *
@@ -318,12 +332,12 @@ Pipeline *pipeline_create(GstElement *camera_source_element)
     // Height must match window cell height (320 / 1.778 = 180)
     GstCaps *cell_caps = gst_caps_new_simple("video/x-raw",
         "format", G_TYPE_STRING, "I420",
-        "width", G_TYPE_INT, 320,
-        "height", G_TYPE_INT, 180,
+        "width", G_TYPE_INT, CELL_WIDTH_PX,
+        "height", G_TYPE_INT, CELL_HEIGHT_PX,
         NULL);
     g_object_set(G_OBJECT(p->live_caps), "caps", cell_caps, NULL);
     gst_caps_unref(cell_caps);
-    LOG_INFO("Live feed will be scaled to 320x180 I420 (cell size)");
+    LOG_INFO("Live feed will be scaled to %dx%d I420 (cell size)", CELL_WIDTH_PX, CELL_HEIGHT_PX);
 
     // Create compositor for compositing 10 cells (modern replacement for videomixer)
     p->videomixer = gst_element_factory_make("compositor", "compositor");
@@ -381,11 +395,11 @@ Pipeline *pipeline_create(GstElement *camera_source_element)
     }
 
     // Configure composite caps for format conversion between videomixer and osxvideosink
-    // Grid dimensions: 3200×180 (10 cells × 320 pixels wide, 180 pixels tall for 16:9 aspect)
+    // Grid dimensions: 3520×360 (11 columns × 320 pixels, 2 rows)
     // Each cell is 320x180 (16:9 aspect ratio) - matches camera and window aspect ratio
     // Frame rate: 120/1 (120 fps for target rendering rate)
-    const gint COMPOSITE_GRID_WIDTH = 3200;  // 10 cells × 320 pixels
-    const gint COMPOSITE_GRID_HEIGHT = 180;  // 16:9 aspect ratio (320 / 1.778 = 180)
+    const gint COMPOSITE_GRID_WIDTH = CELL_WIDTH_PX * GRID_COLS;
+    const gint COMPOSITE_GRID_HEIGHT = CELL_HEIGHT_PX * GRID_ROWS;
     const gint TARGET_FRAMERATE_NUM = 120;
     const gint TARGET_FRAMERATE_DEN = 1;
 
@@ -518,7 +532,7 @@ Pipeline *pipeline_create(GstElement *camera_source_element)
         return NULL;
     }
 
-    // Configure pad properties for cell 1 (live feed)
+    // Configure pad properties for live feed (row 0, col 0)
     // xpos: 0 pixels (leftmost)
     // ypos: 0 pixels (top)
     // width/height: 320x180 (16:9 cell size)
@@ -527,12 +541,13 @@ Pipeline *pipeline_create(GstElement *camera_source_element)
     g_object_set(mixer_sink_pad_0,
                  "xpos", 0,
                  "ypos", 0,
-                 "width", 320,
-                 "height", 180,
+                 "width", CELL_WIDTH_PX,
+                 "height", CELL_HEIGHT_PX,
                  "zorder", 0,
                  "alpha", 1.0,
                  NULL);
-    LOG_DEBUG("Compositor sink pad 0 configured: 320x180 at (0,0)");
+    LOG_DEBUG("Compositor sink pad 0 configured: %dx%d at (0,0)", CELL_WIDTH_PX,
+              CELL_HEIGHT_PX);
 
     if (gst_pad_link(live_caps_src, mixer_sink_pad_0) != GST_PAD_LINK_OK) {
         LOG_ERROR("Failed to link live_caps to videomixer pad 0");
@@ -548,36 +563,44 @@ Pipeline *pipeline_create(GstElement *camera_source_element)
     gst_object_unref(live_caps_src);
     gst_object_unref(mixer_sink_pad_0);
 
-    // Pre-allocate sink pads for playback cells (cells 2-10) for future use
+    // Pre-allocate sink pads for playback layers (1-20) for future use
     // This ensures the videomixer is prepared for dynamic playback bin addition
     // Pads are stored in cell_sink_pads array for later use by playback bins
-    for (int cell = 2; cell <= 10; cell++) {
+    for (int layer = 1; layer <= TOTAL_LAYERS; layer++) {
         GstPad *mixer_sink_pad = gst_element_request_pad_simple(p->videomixer, "sink_%u");
         if (!mixer_sink_pad) {
-            fprintf(stderr, "[WARNING] pipeline_create: Failed to request sink pad for cell %d\n",
-                    cell);
-            p->cell_sink_pads[cell - 2] = NULL;
+            fprintf(stderr, "[WARNING] pipeline_create: Failed to request sink pad for layer %d\n",
+                    layer);
+            p->cell_sink_pads[layer - 1] = NULL;
             continue;
         }
 
-        // Calculate xpos for this cell (cell 1 at 0, cell 2 at 320, cell 3 at 640, etc.)
-        gint xpos = (cell - 1) * 320;
+        gint xpos = 0;
+        gint ypos = 0;
+        if (!pipeline_layer_position(layer, &xpos, &ypos)) {
+            fprintf(stderr,
+                    "[WARNING] pipeline_create: Failed to compute position for layer %d\n",
+                    layer);
+            gst_object_unref(mixer_sink_pad);
+            p->cell_sink_pads[layer - 1] = NULL;
+            continue;
+        }
 
-        // Configure pad properties for this playback cell
-        // xpos: incremented by 320 pixels per cell
-        // ypos: 0 pixels (all cells in single row)
-        // zorder: cell number (higher zorder = front layer)
+        // Configure pad properties for this playback layer
+        // xpos: columns 1-10 (col 0 reserved for live)
+        // ypos: row 0 or 1
+        // zorder: layer number (higher zorder = front layer)
         // alpha: 1.0 (fully opaque)
         // Note: width/height are determined by input caps, not pad properties
-        g_object_set(mixer_sink_pad, "xpos", xpos, "ypos", 0, "zorder",
-                     (cell - 1), // zorder 0-9, where 9 is frontmost
+        g_object_set(mixer_sink_pad, "xpos", xpos, "ypos", ypos, "zorder", layer,
                      "alpha", 1.0, NULL);
 
         // Store reference to pad for later use when playback bins are added
         // We keep our reference - the videomixer also holds one internally
-        p->cell_sink_pads[cell - 2] = mixer_sink_pad;
+        p->cell_sink_pads[layer - 1] = mixer_sink_pad;
 
-        LOG_DEBUG("Pre-configured sink pad for cell %d (xpos=%d, zorder=%d)", cell, xpos, cell - 1);
+        LOG_DEBUG("Pre-configured sink pad for layer %d (xpos=%d, ypos=%d, zorder=%d)", layer,
+                  xpos, ypos, layer);
     }
 
     // Link videomixer → videoconvert → composite_caps → osxvideosink
@@ -605,7 +628,7 @@ Pipeline *pipeline_create(GstElement *camera_source_element)
     gst_bus_add_watch(p->bus, pipeline_bus_watch_handler, p);
 
     // Initialize record_bins, playback_bins, and preview_bins to NULL
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < TOTAL_LAYERS; i++) {
         p->record_bins[i] = NULL;
         p->playback_bins[i] = NULL;
         p->playback_queues[i] = NULL;
@@ -638,7 +661,7 @@ Pipeline *pipeline_create(GstElement *camera_source_element)
 
 gboolean pipeline_add_record_bin(Pipeline *p, int key_num)
 {
-    if (!p || !p->pipeline || key_num < 1 || key_num > 9) {
+    if (!p || !p->pipeline || key_num < 1 || key_num > TOTAL_LAYERS) {
         LOG_ERROR("Invalid pipeline or key_num=%d", key_num);
         return FALSE;
     }
@@ -727,7 +750,7 @@ gboolean pipeline_add_record_bin(Pipeline *p, int key_num)
 
 gboolean pipeline_remove_record_bin(Pipeline *p, int key_num)
 {
-    if (!p || !p->pipeline || key_num < 1 || key_num > 9) {
+    if (!p || !p->pipeline || key_num < 1 || key_num > TOTAL_LAYERS) {
         LOG_ERROR("Invalid pipeline or key_num=%d", key_num);
         return FALSE;
     }
@@ -794,12 +817,12 @@ gboolean pipeline_add_playback_bin(Pipeline *p, int cell_num, guint64 duration_u
         return FALSE;
     }
 
-    if (cell_num < 2 || cell_num > 10) {
-        LOG_ERROR("pipeline_add_playback_bin: Invalid cell_num=%d (must be 2-10)", cell_num);
+    if (cell_num < 1 || cell_num > TOTAL_LAYERS) {
+        LOG_ERROR("pipeline_add_playback_bin: Invalid cell_num=%d (must be 1-20)", cell_num);
         return FALSE;
     }
 
-    int bin_index = cell_num - 2; // Cell 2 → index 0, cell 10 → index 8
+    int bin_index = cell_num - 1; // Layer 1 → index 0, layer 20 → index 19
 
     // Check if bin already exists in this cell
     if (p->playback_bins[bin_index]) {
@@ -835,7 +858,7 @@ gboolean pipeline_add_playback_bin(Pipeline *p, int cell_num, guint64 duration_u
     }
 
     // Log at INFO level to indicate playback infrastructure is ready
-    LOG_INFO("pipeline_add_playback_bin: Allocated playback bin slot for cell %d "
+    LOG_INFO("pipeline_add_playback_bin: Allocated playback bin slot for layer %d "
              "(duration=%llu us); playback element will be added dynamically",
              cell_num, (unsigned long long) duration_us);
 
@@ -849,16 +872,16 @@ gboolean pipeline_remove_playback_bin(Pipeline *p, int cell_num)
         return FALSE;
     }
 
-    if (cell_num < 2 || cell_num > 10) {
-        LOG_ERROR("pipeline_remove_playback_bin: Invalid cell_num=%d (must be 2-10)", cell_num);
+    if (cell_num < 1 || cell_num > TOTAL_LAYERS) {
+        LOG_ERROR("pipeline_remove_playback_bin: Invalid cell_num=%d (must be 1-20)", cell_num);
         return FALSE;
     }
 
-    int bin_index = cell_num - 2; // Cell 2 → index 0, cell 10 → index 8
+    int bin_index = cell_num - 1; // Layer 1 → index 0, layer 20 → index 19
 
     // Check if bin exists
     if (!p->playback_bins[bin_index]) {
-        LOG_DEBUG("pipeline_remove_playback_bin: No playback bin for cell %d to remove", cell_num);
+        LOG_DEBUG("pipeline_remove_playback_bin: No playback bin for layer %d to remove", cell_num);
         return TRUE; // Not an error if it doesn't exist
     }
 
@@ -886,8 +909,8 @@ gboolean pipeline_remove_playback_bin(Pipeline *p, int cell_num)
                 // Unlink the playback bin from the videomixer
                 GstPadLinkReturn link_ret = gst_pad_unlink(bin_src_pad, peer_pad);
                 if (link_ret != GST_PAD_LINK_OK) {
-                    LOG_WARNING("pipeline_remove_playback_bin: Failed to unlink playback bin "
-                                "for cell %d from videomixer (link_ret=%d)",
+            LOG_WARNING("pipeline_remove_playback_bin: Failed to unlink playback bin "
+                                "for layer %d from videomixer (link_ret=%d)",
                                 cell_num, link_ret);
                 }
                 gst_object_unref(peer_pad);
@@ -899,19 +922,19 @@ gboolean pipeline_remove_playback_bin(Pipeline *p, int cell_num)
         gint remove_ret = gst_bin_remove(GST_BIN(p->pipeline), bin);
         if (!remove_ret) {
             LOG_WARNING("pipeline_remove_playback_bin: Failed to remove playback bin "
-                        "for cell %d from pipeline",
+                        "for layer %d from pipeline",
                         cell_num);
         }
 
         // Unreference the element
         gst_object_unref(bin);
 
-        LOG_INFO("pipeline_remove_playback_bin: Removed playback bin from pipeline for cell %d",
+        LOG_INFO("pipeline_remove_playback_bin: Removed playback bin from pipeline for layer %d",
                  cell_num);
     } else {
         // This is a placeholder (malloc'd gpointer), just free it
         g_free(bin);
-        LOG_DEBUG("pipeline_remove_playback_bin: Freed placeholder for cell %d", cell_num);
+        LOG_DEBUG("pipeline_remove_playback_bin: Freed placeholder for layer %d", cell_num);
     }
 
     // Clean up associated queue if it exists
@@ -924,7 +947,7 @@ gboolean pipeline_remove_playback_bin(Pipeline *p, int cell_num)
     // Clear the bin reference
     p->playback_bins[bin_index] = NULL;
 
-    LOG_INFO("pipeline_remove_playback_bin: Playback bin infrastructure removed for cell %d",
+    LOG_INFO("pipeline_remove_playback_bin: Playback bin infrastructure removed for layer %d",
              cell_num);
     return TRUE;
 }
@@ -936,12 +959,12 @@ gboolean pipeline_connect_live_preview(Pipeline *p, int cell_num)
         return FALSE;
     }
 
-    if (cell_num < 2 || cell_num > 10) {
-        LOG_ERROR("pipeline_connect_live_preview: Invalid cell_num=%d (must be 2-10)", cell_num);
+    if (cell_num < 1 || cell_num > TOTAL_LAYERS) {
+        LOG_ERROR("pipeline_connect_live_preview: Invalid cell_num=%d (must be 1-20)", cell_num);
         return FALSE;
     }
 
-    int bin_index = cell_num - 2; // Cell 2 → index 0, cell 10 → index 8
+    int bin_index = cell_num - 1; // Layer 1 → index 0, layer 20 → index 19
 
     // Check if preview is already connected for this cell
     if (p->preview_bins[bin_index]) {
@@ -987,8 +1010,8 @@ gboolean pipeline_connect_live_preview(Pipeline *p, int cell_num)
     // Configure capsfilter for cell size (320x180 I420)
     GstCaps *cell_caps = gst_caps_new_simple("video/x-raw",
         "format", G_TYPE_STRING, "I420",
-        "width", G_TYPE_INT, 320,
-        "height", G_TYPE_INT, 180,
+        "width", G_TYPE_INT, CELL_WIDTH_PX,
+        "height", G_TYPE_INT, CELL_HEIGHT_PX,
         NULL);
     g_object_set(caps, "caps", cell_caps, NULL);
     gst_caps_unref(cell_caps);
@@ -1047,13 +1070,23 @@ gboolean pipeline_connect_live_preview(Pipeline *p, int cell_num)
         return FALSE;
     }
 
-    // Configure mixer sink pad position for this cell
-    int xpos = (cell_num - 1) * 320; // Cell 2 at 320, cell 3 at 640, etc.
+    // Configure mixer sink pad position for this layer
+    int xpos = 0;
+    int ypos = 0;
+    if (!pipeline_layer_position(cell_num, &xpos, &ypos)) {
+        LOG_ERROR("pipeline_connect_live_preview: Failed to compute position for layer %d",
+                  cell_num);
+        gst_object_unref(mixer_sink);
+        gst_element_release_request_pad(p->live_tee, tee_pad);
+        gst_object_unref(tee_pad);
+        gst_bin_remove(GST_BIN(p->pipeline), preview_bin);
+        return FALSE;
+    }
     g_object_set(mixer_sink,
                  "xpos", xpos,
-                 "ypos", 0,
-                 "width", 320,
-                 "height", 180,
+                 "ypos", ypos,
+                 "width", CELL_WIDTH_PX,
+                 "height", CELL_HEIGHT_PX,
                  "zorder", cell_num, // Higher zorder for preview
                  "alpha", 1.0,
                  NULL);
@@ -1079,7 +1112,8 @@ gboolean pipeline_connect_live_preview(Pipeline *p, int cell_num)
     p->preview_bins[bin_index] = preview_bin;
     p->preview_tee_pads[bin_index] = tee_pad;
 
-    LOG_INFO("pipeline_connect_live_preview: Connected live preview to cell %d (xpos=%d)", cell_num, xpos);
+    LOG_INFO("pipeline_connect_live_preview: Connected live preview to layer %d (xpos=%d, ypos=%d)",
+             cell_num, xpos, ypos);
     return TRUE;
 }
 
@@ -1090,16 +1124,16 @@ gboolean pipeline_disconnect_live_preview(Pipeline *p, int cell_num)
         return FALSE;
     }
 
-    if (cell_num < 2 || cell_num > 10) {
-        LOG_ERROR("pipeline_disconnect_live_preview: Invalid cell_num=%d (must be 2-10)", cell_num);
+    if (cell_num < 1 || cell_num > TOTAL_LAYERS) {
+        LOG_ERROR("pipeline_disconnect_live_preview: Invalid cell_num=%d (must be 1-20)", cell_num);
         return FALSE;
     }
 
-    int bin_index = cell_num - 2;
+    int bin_index = cell_num - 1;
 
     // Check if preview exists
     if (!p->preview_bins[bin_index]) {
-        LOG_DEBUG("pipeline_disconnect_live_preview: No preview for cell %d", cell_num);
+        LOG_DEBUG("pipeline_disconnect_live_preview: No preview for layer %d", cell_num);
         return TRUE; // Nothing to disconnect
     }
 
@@ -1139,7 +1173,8 @@ gboolean pipeline_disconnect_live_preview(Pipeline *p, int cell_num)
     p->preview_bins[bin_index] = NULL;
     p->preview_tee_pads[bin_index] = NULL;
 
-    LOG_INFO("pipeline_disconnect_live_preview: Disconnected live preview from cell %d", cell_num);
+    LOG_INFO("pipeline_disconnect_live_preview: Disconnected live preview from layer %d",
+             cell_num);
     return TRUE;
 }
 
@@ -1241,7 +1276,7 @@ void pipeline_cleanup(Pipeline *p)
     }
 
     // Remove and unref record bins
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < TOTAL_LAYERS; i++) {
         if (p->record_bins[i]) {
             RecordBin *rbin = p->record_bins[i];
             GstElement *bin = rbin->bin;
@@ -1254,7 +1289,7 @@ void pipeline_cleanup(Pipeline *p)
     }
 
     // Remove and unref playback bins
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < TOTAL_LAYERS; i++) {
         if (p->playback_bins[i]) {
             gst_bin_remove(GST_BIN(p->pipeline), p->playback_bins[i]);
             gst_object_unref(p->playback_bins[i]);

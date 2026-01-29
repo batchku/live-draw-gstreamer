@@ -21,6 +21,7 @@
 #define RECORD_BIN_H
 
 #include "../recording/buffer_manager.h"
+#include "../app/app_config.h"
 #include <gst/gst.h>
 
 /**
@@ -32,7 +33,7 @@
  * @fakesink: Fakesink element that consumes buffers after probe capture
  * @ring_buffer: Ring buffer to store captured frames (GPU memory)
  * @is_recording: Boolean indicating if frames are currently being captured
- * @key_number: Key number (1-9) for keyboard mapping
+ * @key_number: Key number (1-20) for keyboard mapping
  * @probe_id: ID of the pad probe for unregistering later
  * @probe_pad: Pad where the probe is attached (weak reference)
  */
@@ -43,7 +44,7 @@ typedef struct {
     GstElement *fakesink;    /**< Fakesink for consuming buffers */
     RingBuffer *ring_buffer; /**< Ring buffer for frame storage */
     gboolean is_recording;   /**< Recording active flag */
-    int key_number;          /**< Key number for this recording (1-9) */
+    int key_number;          /**< Key number for this recording (1-20) */
     gulong probe_id;         /**< Probe ID for cleanup */
     GstPad *probe_pad;       /**< Pad where probe is attached */
     GstPad *tee_pad;         /**< Pad from tee element (for proper cleanup) */
@@ -59,7 +60,7 @@ typedef struct {
  * The bin is NOT added to the pipeline by this function.
  * The caller must add it to the pipeline using gst_bin_add().
  *
- * @param key_number  Key number (1-9) for keyboard mapping
+ * @param key_number  Key number (1-20) for keyboard mapping
  * @param max_frames  Maximum frames to store in ring buffer (e.g., 60 for 2 seconds @ 30fps)
  * @param caps        GStreamer caps describing frame format (can be NULL initially)
  *

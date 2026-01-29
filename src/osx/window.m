@@ -71,15 +71,17 @@ static gboolean window_create_nswindow_internal(OSXWindow *win, CGFloat width, C
 - (void)keyDown:(NSEvent *)event {
   // Forward key press to keyboard handler
   unsigned short keyCode = [event keyCode];
+  BOOL isShifted = (event.modifierFlags & NSEventModifierFlagShift) != 0;
   LOG_DEBUG("keyDown: keyCode=%u", keyCode);
-  keyboard_on_event((int)keyCode, TRUE);
+  keyboard_on_event((int)keyCode, isShifted, TRUE);
 }
 
 - (void)keyUp:(NSEvent *)event {
   // Forward key release to keyboard handler
   unsigned short keyCode = [event keyCode];
+  BOOL isShifted = (event.modifierFlags & NSEventModifierFlagShift) != 0;
   LOG_DEBUG("keyUp: keyCode=%u", keyCode);
-  keyboard_on_event((int)keyCode, FALSE);
+  keyboard_on_event((int)keyCode, isShifted, FALSE);
 }
 
 @end
@@ -118,13 +120,15 @@ static gboolean window_create_nswindow_internal(OSXWindow *win, CGFloat width, C
 /**
  * Calculate window dimensions based on aspect ratio
  *
- * @param num_cells Number of grid cells (typically 10)
+ * @param grid_cols Number of grid columns (typically 11)
+ * @param grid_rows Number of grid rows (typically 2)
  * @param aspect_ratio Video aspect ratio (width / height)
  * @param out_width Pointer to receive calculated width
  * @param out_height Pointer to receive calculated height
  */
 void window_calculate_dimensions(
-    guint num_cells,
+    guint grid_cols,
+    guint grid_rows,
     CGFloat aspect_ratio,
     CGFloat *out_width,
     CGFloat *out_height) {
@@ -135,8 +139,8 @@ void window_calculate_dimensions(
     aspect_ratio = 16.0 / 9.0;  // 1.777...
   }
 
-  *out_width = CELL_WIDTH * num_cells;
-  *out_height = CELL_WIDTH / aspect_ratio;
+  *out_width = CELL_WIDTH * grid_cols;
+  *out_height = (CELL_WIDTH / aspect_ratio) * grid_rows;
 }
 
 /**

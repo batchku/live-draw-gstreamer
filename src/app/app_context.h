@@ -45,7 +45,9 @@ typedef struct {
 
     /* Configuration */
     guint target_fps;     /* 120 fps target */
-    guint grid_cells;     /* 10 cells */
+    guint grid_cols;      /* 11 columns */
+    guint grid_rows;      /* 2 rows */
+    guint total_layers;   /* 20 layers */
     guint cell_width_px;  /* 320 pixels */
     guint camera_width;   /* Negotiated width */
     guint camera_height;  /* Negotiated height */

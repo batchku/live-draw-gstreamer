@@ -16,6 +16,7 @@
 #include "../recording/recording_state.h"
 #include "../utils/logging.h"
 #include "../utils/timing.h"
+#include "app_config.h"
 #include "app_context.h"
 #include <glib.h>
 #include <string.h>
@@ -27,14 +28,29 @@
  */
 typedef struct {
     AppContext *app_ctx;        /* Reference to app context */
-    void *recording_buffers[9]; /* Buffers for cells 2-10 (indices 0-8), cast from RingBuffer * */
-    PlaybackBin *playback_bins[9]; /* Playback bins for cells 2-10 (GStreamer elements) */
-    guint64 recording_start_times[9]; /* Start time for each recording */
-    gint active_recordings[9];        /* Which key is recording to each cell (-1 if none) */
+    void *recording_buffers[20];   /* Buffers for layers 1-20 (indices 0-19) */
+    PlaybackBin *playback_bins[20]; /* Playback bins for layers 1-20 */
+    guint64 recording_start_times[20]; /* Start time for each recording */
+    gint active_recordings[20];        /* Which key is recording to each layer (-1 if none) */
 } E2ECoordinator;
 
 /* Global coordinator instance */
 static E2ECoordinator *g_coordinator = NULL;
+
+static gboolean e2e_layer_position(int layer_number, int *xpos, int *ypos)
+{
+    if (layer_number < 1 || layer_number > TOTAL_LAYERS || !xpos || !ypos) {
+        return FALSE;
+    }
+
+    int layer_index = layer_number - 1;
+    int col = (layer_index % LAYER_COLUMNS) + 1;
+    int row = layer_index / LAYER_COLUMNS;
+
+    *xpos = col * CELL_WIDTH_PX;
+    *ypos = row * CELL_HEIGHT_PX;
+    return TRUE;
+}
 
 /**
  * Initialize the E2E coordinator
@@ -58,7 +74,7 @@ gboolean e2e_coordinator_init(void *app_ctx_ptr)
     g_coordinator->app_ctx = app_ctx;
 
     /* Initialize all cells to empty/not-recording */
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 20; i++) {
         g_coordinator->recording_buffers[i] = NULL;
         g_coordinator->playback_bins[i] = NULL;
         g_coordinator->recording_start_times[i] = 0;
@@ -74,7 +90,7 @@ gboolean e2e_coordinator_init(void *app_ctx_ptr)
  */
 static void handle_key_press(int key_number)
 {
-    if (key_number < 1 || key_number > 9) {
+    if (key_number < 1 || key_number > 20) {
         LOG_DEBUG("handle_key_press: Invalid key_number %d", key_number);
         return;
     }
@@ -124,8 +140,8 @@ static void handle_key_press(int key_number)
     }
 
     /* Connect live preview to show recording is happening */
-    int cell_num = key_number + 1; // Key 1 → cell 2, key 2 → cell 3, etc.
-    if (!pipeline_connect_live_preview(pipeline, cell_num)) {
+    int layer_num = key_number; // Layer matches key number
+    if (!pipeline_connect_live_preview(pipeline, layer_num)) {
         LOG_WARNING("handle_key_press: Failed to connect live preview for key %d", key_number);
         // Continue anyway - recording still works
     }
@@ -138,7 +154,7 @@ static void handle_key_press(int key_number)
  */
 static void handle_key_release(int key_number)
 {
-    if (key_number < 1 || key_number > 9) {
+    if (key_number < 1 || key_number > 20) {
         LOG_DEBUG("handle_key_release: Invalid key_number %d", key_number);
         return;
     }
@@ -173,8 +189,8 @@ static void handle_key_release(int key_number)
     record_bin_stop_recording(rbin);
 
     /* Disconnect live preview now that recording is done */
-    int preview_cell = key_number + 1; // Key 1 → cell 2, etc.
-    pipeline_disconnect_live_preview(pipeline, preview_cell);
+    int layer_num = key_number; // Layer matches key number
+    pipeline_disconnect_live_preview(pipeline, layer_num);
 
     /* Get the buffer containing the captured frames from the record bin */
     RingBuffer *recorded_buffer = record_bin_get_buffer(rbin);
@@ -186,11 +202,11 @@ static void handle_key_release(int key_number)
         return;
     }
 
-    /* Assign this recording to the next available cell */
-    gint cell_index = recording_assign_next_cell(rec_state);
-    int cell_num = cell_index + 2; /* Convert 0-8 to 2-10 */
+    /* Assign this recording to the layer matching the key */
+    gint cell_index = key_number - 1; /* Convert 1-20 to 0-19 */
+    int cell_num = key_number;
 
-    LOG_DEBUG("handle_key_release: Recording assigned to cell %d (index %d), duration: %llu us",
+    LOG_DEBUG("handle_key_release: Recording assigned to layer %d (index %d), duration: %llu us",
               cell_num, cell_index, duration_us);
 
     /* Transfer ownership of the recorded buffer from record_bin to coordinator.
@@ -202,8 +218,8 @@ static void handle_key_release(int key_number)
     /* Create output caps for the playback bin (320x180 I420 to match cell size) */
     GstCaps *output_caps = gst_caps_new_simple("video/x-raw",
         "format", G_TYPE_STRING, "I420",
-        "width", G_TYPE_INT, 320,
-        "height", G_TYPE_INT, 180,
+        "width", G_TYPE_INT, CELL_WIDTH_PX,
+        "height", G_TYPE_INT, CELL_HEIGHT_PX,
         NULL);
 
     /* Create playback bin with GStreamer elements (appsrc → queue → output) */
@@ -233,17 +249,28 @@ static void handle_key_release(int key_number)
         return;
     }
 
-    /* Configure the mixer sink pad position for this cell */
-    int xpos = (cell_num - 1) * 320; /* Cell 2 at 320, cell 3 at 640, etc. */
+    /* Configure the mixer sink pad position for this layer */
+    int xpos = 0;
+    int ypos = 0;
+    if (!e2e_layer_position(cell_num, &xpos, &ypos)) {
+        LOG_ERROR("handle_key_release: Failed to compute position for layer %d", cell_num);
+        gst_element_release_request_pad(pipeline->videomixer, mixer_sink);
+        gst_object_unref(mixer_sink);
+        gst_bin_remove(GST_BIN(pipeline->pipeline), pbin->bin);
+        playback_bin_cleanup(pbin);
+        g_coordinator->playback_bins[cell_index] = NULL;
+        return;
+    }
     g_object_set(mixer_sink,
                  "xpos", xpos,
-                 "ypos", 0,
-                 "width", 320,
-                 "height", 180,
+                 "ypos", ypos,
+                 "width", CELL_WIDTH_PX,
+                 "height", CELL_HEIGHT_PX,
                  "zorder", cell_num,
                  "alpha", 1.0,
                  NULL);
-    LOG_DEBUG("handle_key_release: Configured fresh sink pad for cell %d (xpos=%d)", cell_num, xpos);
+    LOG_DEBUG("handle_key_release: Configured fresh sink pad for layer %d (xpos=%d, ypos=%d)",
+              cell_num, xpos, ypos);
 
     /* Link the playback bin's source pad to the videomixer sink pad */
     GstPad *pbin_src = gst_element_get_static_pad(pbin->bin, "src");
@@ -263,7 +290,7 @@ static void handle_key_release(int key_number)
     /* Sync the playback bin state with the pipeline (set to PLAYING) */
     gst_element_sync_state_with_parent(pbin->bin);
 
-    LOG_INFO("handle_key_release: Key %d recording complete, playback started in cell %d (xpos=%d)",
+    LOG_INFO("handle_key_release: Key %d recording complete, playback started in layer %d (xpos=%d)",
              key_number, cell_num, xpos);
 }
 
@@ -296,8 +323,8 @@ void e2e_on_key_event(int key_number, gboolean is_pressed)
  */
 void *e2e_get_recording_buffer(int cell_num)
 {
-    if (cell_num < 2 || cell_num > 10) {
-        LOG_ERROR("e2e_get_recording_buffer: Invalid cell_num %d", cell_num);
+    if (cell_num < 1 || cell_num > 20) {
+        LOG_ERROR("e2e_get_recording_buffer: Invalid layer %d", cell_num);
         return NULL;
     }
 
@@ -306,7 +333,7 @@ void *e2e_get_recording_buffer(int cell_num)
         return NULL;
     }
 
-    int cell_index = cell_num - 2; /* Convert 2-10 to 0-8 */
+    int cell_index = cell_num - 1; /* Convert 1-20 to 0-19 */
     return g_coordinator->recording_buffers[cell_index];
 }
 
@@ -322,7 +349,7 @@ void e2e_coordinator_cleanup(void)
     LOG_DEBUG("Cleaning up E2E coordinator...");
 
     /* Clean up all playback bins */
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 20; i++) {
         if (g_coordinator->playback_bins[i]) {
             playback_bin_cleanup(g_coordinator->playback_bins[i]);
             g_coordinator->playback_bins[i] = NULL;
@@ -330,7 +357,7 @@ void e2e_coordinator_cleanup(void)
     }
 
     /* Clean up all recording buffers */
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 20; i++) {
         if (g_coordinator->recording_buffers[i]) {
             buffer_cleanup(g_coordinator->recording_buffers[i]);
             g_coordinator->recording_buffers[i] = NULL;

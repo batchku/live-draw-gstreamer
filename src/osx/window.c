@@ -16,8 +16,8 @@
  * Forward declarations for Objective-C helper functions (implemented in window.m)
  * ========================================================================= */
 
-extern void window_calculate_dimensions(guint num_cells, CGFloat aspect_ratio, CGFloat *out_width,
-                                        CGFloat *out_height);
+extern void window_calculate_dimensions(guint grid_cols, guint grid_rows, CGFloat aspect_ratio,
+                                        CGFloat *out_width, CGFloat *out_height);
 
 extern GstElement *window_create_osxvideosink(void);
 
@@ -35,9 +35,9 @@ extern void window_release_nswindow(OSXWindow *win);
  * Public API Implementation
  * ========================================================================= */
 
-OSXWindow *window_create(guint num_cells)
+OSXWindow *window_create(guint grid_cols, guint grid_rows)
 {
-    LOG_INFO("Creating OS X window for %u cells (10x1 grid)...", num_cells);
+    LOG_INFO("Creating OS X window for %ux%u grid...", grid_cols, grid_rows);
 
     // Allocate window context
     OSXWindow *win = malloc(sizeof(OSXWindow));
@@ -48,16 +48,18 @@ OSXWindow *window_create(guint num_cells)
     memset(win, 0, sizeof(OSXWindow));
 
     // Store grid configuration
-    win->grid_cols = num_cells;
-    win->grid_rows = 1;
+    win->grid_cols = grid_cols;
+    win->grid_rows = grid_rows;
     win->cell_width = 320.0;
     win->cell_height = 180.0;  // 16:9 aspect to match 1080p camera (320/180 = 1.778)
     win->aspect_ratio = 16.0 / 9.0; // 16:9 aspect ratio to match camera
     win->resizable = TRUE;
 
     // Calculate window dimensions with 16:9 aspect ratio
-    CGFloat window_width = win->cell_width * num_cells;   // 3200 pixels wide
-    CGFloat window_height = win->cell_height;              // 180 pixels tall
+    CGFloat window_width = 0;
+    CGFloat window_height = 0;
+    window_calculate_dimensions(grid_cols, grid_rows, win->aspect_ratio, &window_width,
+                                &window_height);
     LOG_DEBUG("Window dimensions: %.0f x %.0f pixels", window_width, window_height);
 
     // Create NSWindow and VideoLooperView on main thread (Objective-C)
@@ -77,7 +79,8 @@ OSXWindow *window_create(guint num_cells)
 
     win->videosink = videosink;
 
-    LOG_INFO("OS X window successfully created (3200x180 @ 16:9 aspect ratio)");
+    LOG_INFO("OS X window successfully created (%.0fx%.0f @ 16:9 aspect ratio)", window_width,
+             window_height);
     return win;
 }
 
@@ -100,12 +103,12 @@ void window_set_aspect_ratio(OSXWindow *win, gdouble aspect_ratio)
 
     win->aspect_ratio = (CGFloat) aspect_ratio;
 
-    // Recalculate height based on new aspect ratio
-    CGFloat new_height = win->cell_width / win->aspect_ratio;
-    win->cell_height = new_height;
+    // Recalculate cell height based on new aspect ratio
+    win->cell_height = win->cell_width / win->aspect_ratio;
 
     // Update window size
     CGFloat new_width = win->cell_width * win->grid_cols;
+    CGFloat new_height = win->cell_height * win->grid_rows;
     window_update_nswindow_frame(win, new_width, new_height);
 }
 

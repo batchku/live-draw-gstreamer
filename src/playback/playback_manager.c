@@ -234,8 +234,8 @@ GstElement *playback_create_bin(RingBuffer *buffer, int cell_number)
         return NULL;
     }
 
-    if (cell_number < 2 || cell_number > 10) {
-        LOG_ERROR("playback_create_bin: invalid cell_number %d (must be 2-10)", cell_number);
+    if (cell_number < 1 || cell_number > 20) {
+        LOG_ERROR("playback_create_bin: invalid cell_number %d (must be 1-20)", cell_number);
         return NULL;
     }
 

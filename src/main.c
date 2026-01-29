@@ -33,6 +33,7 @@
 #include "app/cleanup_handlers.h"
 #include "app/e2e_coordinator.h"
 #include "app/error_dialog.h"
+#include "app/app_config.h"
 #include "camera/camera_source.h"
 #include "gstreamer/pipeline_builder.h"
 #include "input/keyboard_handler.h"
@@ -279,8 +280,8 @@ static gboolean initialize_window(AppContext *app_ctx)
 {
     LOG_DEBUG("Initializing OS X window...");
 
-    /* Create window with 10-cell grid layout */
-    OSXWindow *window = window_create(10); /* 10 cells for 10x1 grid */
+    /* Create window with 11x2 grid layout */
+    OSXWindow *window = window_create(GRID_COLS, GRID_ROWS);
     if (!window) {
         LOG_ERROR("Failed to create OS X window");
         app_log_error(APP_ERROR_WINDOW_CREATE_FAILED, "Could not create application window");
@@ -293,8 +294,10 @@ static gboolean initialize_window(AppContext *app_ctx)
     /* Store window reference and videosink */
     app_ctx->window = window;
 
-    LOG_INFO("OS X window initialized successfully (3200×%d pixels, 10-cell grid)",
-             (int) (320 / app_ctx->aspect_ratio));
+    LOG_INFO("OS X window initialized successfully (%dx%d pixels, %ux%u grid)",
+             CELL_WIDTH_PX * GRID_COLS,
+             (int) ((CELL_WIDTH_PX / app_ctx->aspect_ratio) * GRID_ROWS),
+             GRID_COLS, GRID_ROWS);
 
     return TRUE;
 }
@@ -675,7 +678,7 @@ static int app_main(int argc, char *argv[], gpointer user_data)
     LOG_INFO("==================================");
     LOG_INFO("Application initialization complete");
     LOG_INFO("Ready for video looping");
-    LOG_INFO("Press 1-9 to record, Escape to quit");
+    LOG_INFO("Press 1-0 to record layers 1-10, Shift+1-0 for layers 11-20, Escape to quit");
     LOG_INFO("==================================");
 
     /* Start the pipeline playing to display live video */

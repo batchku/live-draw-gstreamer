@@ -20,18 +20,18 @@ typedef int gint;
 typedef struct _GstElement GstElement;
 
 /**
- * RecordingState - Track recording state for all 9 keys
+ * RecordingState - Track recording state for all 20 keys
  *
- * @is_recording: Array indicating if each key (1-9) is currently recording
+ * @is_recording: Array indicating if each key (1-20) is currently recording
  * @record_start_time: Start timestamp for each recording (microseconds)
  * @record_duration_us: Duration of each recording (microseconds)
- * @current_cell_index: Next cell to assign (0-8, maps to cells 2-10)
+ * @current_cell_index: Next cell to assign (0-19, maps to layers 1-20)
  */
 typedef struct {
-    gboolean is_recording[9];      /* One per key (1-9) */
-    guint64 record_start_time[9];  /* Timestamp when recording started */
-    guint64 record_duration_us[9]; /* Duration in microseconds */
-    gint current_cell_index;       /* Next cell to fill (0-8) */
+    gboolean is_recording[20];      /* One per key (1-20) */
+    guint64 record_start_time[20];  /* Timestamp when recording started */
+    guint64 record_duration_us[20]; /* Duration in microseconds */
+    gint current_cell_index;        /* Next cell to fill (0-19) */
 } RecordingState;
 
 /**
@@ -45,7 +45,7 @@ RecordingState *recording_state_init(void);
  * recording_on_key_press - Handle keyboard key press event
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * Marks the key as recording and captures the start timestamp.
  */
@@ -55,7 +55,7 @@ void recording_on_key_press(RecordingState *state, int key_number);
  * recording_on_key_release - Handle keyboard key release event
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * Stops recording for the key and calculates total duration.
  */
@@ -65,7 +65,7 @@ void recording_on_key_release(RecordingState *state, int key_number);
  * recording_is_recording - Query if a key is currently recording
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * Returns: TRUE if the key is currently being held and recording
  */
@@ -75,7 +75,7 @@ gboolean recording_is_recording(RecordingState *state, int key_number);
  * recording_get_duration - Get duration of a recorded segment
  *
  * @state: Recording state tracker
- * @key_number: Key number (1-9)
+ * @key_number: Key number (1-20)
  *
  * Returns: Duration in microseconds, or 0 if not recorded yet
  */
@@ -87,7 +87,7 @@ guint64 recording_get_duration(RecordingState *state, int key_number);
  * @state: Recording state tracker
  *
  * Implements circular cell assignment:
- * Returns cell 0 (grid cell 2), advances index to 1, ..., returns cell 8 (grid cell 10),
+ * Returns cell 0 (layer 1), advances index to 1, ..., returns cell 19 (layer 20),
  * then wraps to 0 again.
  *
  * Returns: Cell index (0-8) for the next recording

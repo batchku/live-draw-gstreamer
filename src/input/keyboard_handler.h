@@ -12,7 +12,8 @@
  * - Dispatches events (press/release) to the registered callback
  *
  * Key mappings:
- * - Physical keys 1-9 → Logical keys 1-9 (for video recording)
+ * - Physical keys 1-0 → Logical keys 1-10 (for video recording)
+ * - Shift+1-0 → Logical keys 11-20 (for video recording)
  * - Escape key → Quit signal
  * - All other keys are ignored
  *
@@ -36,7 +37,7 @@
  * Invoked when a keyboard key is pressed or released.
  *
  * @param key_number Logical key number:
- *                   - 1-9: Recording keys (maps to cells 2-10)
+ *                   - 1-20: Recording keys (layers)
  *                   - -1: Quit key (Escape)
  * @param is_pressed TRUE if key was pressed, FALSE if released
  *
@@ -50,7 +51,7 @@ typedef void (*KeyEventCallback)(int key_number, gboolean is_pressed);
  *
  * Registers a callback function for keyboard events. The callback will be
  * invoked for all key press and release events matching the supported keys
- * (1-9, Escape).
+ * (1-20 via 1-0 and Shift+1-0, Escape).
  *
  * This function must be called during application startup, before the GTK+
  * main event loop begins.
@@ -73,7 +74,7 @@ void keyboard_init(KeyEventCallback on_key_event);
  * matches a supported key.
  *
  * Supported keys:
- * - 1-9: Recording keys (logical key numbers 1-9)
+ * - 1-20: Recording keys (logical key numbers 1-20)
  * - Escape: Quit key (logical key number -1)
  * - All other keys: Ignored silently
  *
@@ -81,6 +82,7 @@ void keyboard_init(KeyEventCallback on_key_event);
  *
  * @param key_code Physical key code from the operating system.
  *                 On macOS, this is the NSEvent keyCode value.
+ * @param is_shifted TRUE if shift modifier is active
  * @param is_pressed TRUE if key was pressed, FALSE if released
  *
  * @note This function must be called from the GTK+ event loop thread
@@ -90,7 +92,7 @@ void keyboard_init(KeyEventCallback on_key_event);
  *
  * Typical event latency: <50ms from user key press to callback invocation
  */
-void keyboard_on_event(int key_code, gboolean is_pressed);
+void keyboard_on_event(int key_code, gboolean is_shifted, gboolean is_pressed);
 
 /**
  * @brief Clean up keyboard input handler

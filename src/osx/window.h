@@ -36,16 +36,17 @@ typedef struct {
  *
  * Creates a native Cocoa NSWindow with the specified grid dimensions.
  * Window size is calculated as:
- * - Width: cell_width * grid_cols (320px * 10 = 3200px)
- * - Height: cell_width / aspect_ratio * grid_rows (320 / (16/9) * 1 = 180px)
+ * - Width: cell_width * grid_cols (320px * 11 = 3520px)
+ * - Height: cell_width / aspect_ratio * grid_rows (320 / (16/9) * 2 = 360px)
  *
  * The window title is set to "Video Looper".
  * The window is positioned using macOS default positioning (cascade).
  *
- * @param num_cells Number of grid cells (typically 10 for 10x1 layout)
+ * @param grid_cols Number of grid columns (typically 11)
+ * @param grid_rows Number of grid rows (typically 2)
  * @return Newly allocated OSXWindow, or NULL on failure
  */
-OSXWindow *window_create(guint num_cells);
+OSXWindow *window_create(guint grid_cols, guint grid_rows);
 
 /**
  * Get GStreamer osxvideosink element from window
