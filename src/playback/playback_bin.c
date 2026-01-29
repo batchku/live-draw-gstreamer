@@ -97,8 +97,8 @@ static void playback_bin_enough_data_callback(GstAppSrc *source G_GNUC_UNUSED,
 
 PlaybackBin *playback_bin_create(int cell_number, RingBuffer *buffer, GstCaps *output_caps)
 {
-    if (cell_number < 1 || cell_number > 20) {
-        LOG_ERROR("Invalid cell_number: %d (must be 1-20)", cell_number);
+    if (cell_number < 1 || cell_number > TOTAL_LAYERS) {
+        LOG_ERROR("Invalid cell_number: %d (must be 1-50)", cell_number);
         return NULL;
     }
 

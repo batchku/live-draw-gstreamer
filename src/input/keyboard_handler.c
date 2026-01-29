@@ -9,6 +9,9 @@
  * Key mappings (macOS key codes):
  * - Keys 1-0: Video recording keys (layers 1-10)
  * - Shift+1-0: Video recording keys (layers 11-20)
+ * - Ctrl+1-0: Video recording keys (layers 21-30)
+ * - Option+1-0: Video recording keys (layers 31-40)
+ * - Command+1-0: Video recording keys (layers 41-50)
  * - Escape: Application quit
  *
  * Architecture:
@@ -47,7 +50,7 @@ static KeyboardHandlerState g_keyboard_state = {.callback = NULL, .handler_initi
  *
  * Registers a callback function that will be invoked when key events occur.
  * The callback receives:
- * - key_number: Logical key number (1-20 for recording, -1 for quit)
+ * - key_number: Logical key number (1-50 for recording, -1 for quit)
  * - is_pressed: TRUE for key press, FALSE for key release
  *
  * Can only be called once; subsequent calls are ignored with a warning.
@@ -74,7 +77,7 @@ void keyboard_init(KeyEventCallback on_key_event)
     memset(g_keyboard_state.key_pressed, FALSE, sizeof(g_keyboard_state.key_pressed));
     g_atomic_int_set(&g_keyboard_state.handler_initialized, TRUE);
 
-    LOG_INFO("Keyboard handler initialized (keys 1-0 and Shift+1-0, Escape)");
+    LOG_INFO("Keyboard handler initialized (1-0, Shift/Ctrl/Option/Cmd + 1-0, Escape)");
 }
 
 /**
@@ -87,7 +90,7 @@ void keyboard_init(KeyEventCallback on_key_event)
  * This function:
  * 1. Translates physical key code to logical key number
  * 2. Checks if the callback is registered
- * 3. Filters for valid recording keys (1-20) and quit key (Escape)
+ * 3. Filters for valid recording keys (1-50) and quit key (Escape)
  * 4. Invokes the callback with the logical key number and press/release state
  * 5. Logs the event at DEBUG level for diagnostics
  *
@@ -95,14 +98,14 @@ void keyboard_init(KeyEventCallback on_key_event)
  *
  * @param key_code Physical key code from the operating system
  *                 (macOS NSEvent keyCode or equivalent)
- * @param is_shifted TRUE if shift modifier is active
+ * @param modifiers Modifier mask (KEY_MOD_*)
  * @param is_pressed TRUE if key was pressed, FALSE if released
  *
  * @note Thread-safe: must be called from the main GTK+ event loop thread
  * @note Unknown keys are ignored silently (no log message)
  * @note No error handling needed; invalid inputs are handled gracefully
  */
-void keyboard_on_event(int key_code, gboolean is_shifted, gboolean is_pressed)
+void keyboard_on_event(int key_code, KeyModifierMask modifiers, gboolean is_pressed)
 {
     // Check if handler is initialized
     if (!g_atomic_int_get(&g_keyboard_state.handler_initialized)) {
@@ -116,7 +119,7 @@ void keyboard_on_event(int key_code, gboolean is_shifted, gboolean is_pressed)
     }
 
     // Translate physical key code to logical key number
-    LogicalKeyNumber key_number = key_code_to_logical_key(key_code, is_shifted);
+    LogicalKeyNumber key_number = key_code_to_logical_key(key_code, modifiers);
 
     // Ignore unknown keys silently
     if (key_number == KEY_UNKNOWN) {

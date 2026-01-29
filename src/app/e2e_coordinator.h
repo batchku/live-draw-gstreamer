@@ -41,7 +41,7 @@ gboolean e2e_coordinator_init(void *app_ctx);
  * 1. On key press: Start recording by signaling the record bin
  * 2. On key release: Stop recording and create playback bin
  *
- * @param key_number Key number (1-20) or -1 for quit
+ * @param key_number Key number (1-50) or -1 for quit
  * @param is_pressed TRUE if key was pressed, FALSE if released
  */
 void e2e_on_key_event(int key_number, gboolean is_pressed);
@@ -51,7 +51,7 @@ void e2e_on_key_event(int key_number, gboolean is_pressed);
  *
  * Used by playback bins to access the recorded video frames.
  *
- * @param cell_num Layer number (1-20)
+ * @param cell_num Layer number (1-50)
  * @return RingBuffer pointer, or NULL if not found
  */
 void *e2e_get_recording_buffer(int cell_num);

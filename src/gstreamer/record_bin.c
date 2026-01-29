@@ -82,7 +82,7 @@ static GstPadProbeReturn record_bin_queue_probe(GstPad *pad G_GNUC_UNUSED, GstPa
 RecordBin *record_bin_create(int key_number, guint max_frames, GstCaps *caps)
 {
     if (key_number < 1 || key_number > TOTAL_LAYERS) {
-        LOG_ERROR("Invalid key_number: %d (must be 1-20)", key_number);
+        LOG_ERROR("Invalid key_number: %d (must be 1-50)", key_number);
         return NULL;
     }
 

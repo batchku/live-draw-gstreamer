@@ -29,6 +29,7 @@
 #ifndef KEYBOARD_HANDLER_H
 #define KEYBOARD_HANDLER_H
 
+#include "key_codes.h"
 #include <glib.h>
 
 /**
@@ -82,7 +83,7 @@ void keyboard_init(KeyEventCallback on_key_event);
  *
  * @param key_code Physical key code from the operating system.
  *                 On macOS, this is the NSEvent keyCode value.
- * @param is_shifted TRUE if shift modifier is active
+ * @param modifiers Modifier mask (KEY_MOD_*)
  * @param is_pressed TRUE if key was pressed, FALSE if released
  *
  * @note This function must be called from the GTK+ event loop thread
@@ -92,7 +93,7 @@ void keyboard_init(KeyEventCallback on_key_event);
  *
  * Typical event latency: <50ms from user key press to callback invocation
  */
-void keyboard_on_event(int key_code, gboolean is_shifted, gboolean is_pressed);
+void keyboard_on_event(int key_code, KeyModifierMask modifiers, gboolean is_pressed);
 
 /**
  * @brief Clean up keyboard input handler

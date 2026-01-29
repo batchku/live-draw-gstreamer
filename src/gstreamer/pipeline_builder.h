@@ -18,12 +18,15 @@ typedef void (*PipelineMessageCallback)(const char *type, const char *message);
  * Manages the main GStreamer pipeline with:
  * - Camera source input
  * - Live queue for cell 1 (GPU memory buffer)
- * - 20 record bins (one per key 1-20)
- * - 20 playback bins (created dynamically)
- * - Videomixer compositor for 11x2 grid layout with proper pad configuration:
+ * - 50 record bins (one per key 1-50)
+ * - 50 playback bins (created dynamically)
+ * - Videomixer compositor for 11x5 grid layout with proper pad configuration:
  *   * Live feed: row 0, col 0 (xpos=0, ypos=0, zorder=0)
  *   * Layers 1-10: row 0, cols 1-10
  *   * Layers 11-20: row 1, cols 1-10
+ *   * Layers 21-30: row 2, cols 1-10
+ *   * Layers 31-40: row 3, cols 1-10
+ *   * Layers 41-50: row 4, cols 1-10
  * - osxvideosink for window rendering
  *
  * Note: record_bins are opaque pointers to RecordBin structures
@@ -56,14 +59,11 @@ typedef struct {
  * - Camera source connected to a tee element
  * - Live queue branching to videomixer input pad 0 (cell 1)
  * - Nine record bin connection points on tee output (initially unused)
- * - Videomixer configured for 10-cell grid (1 row × 10 columns) with proper pad configuration:
- *   * Cell 1 (pad 0): Live feed at xpos=0, zorder=0 (background)
- *   * Cells 2-10 (pads 1-9): Pre-allocated with xpos=320-2880, zorder=1-9
- *   * All pads: ypos=0, width=320 pixels, alpha=1.0 (fully opaque)
+ * - Videomixer configured for 11x5 grid with proper pad configuration
  * - Composite capsfilter and osxvideosink for rendering
  *
  * Videomixer Pad Configuration Details:
- * - Total grid width: 3200 pixels (320 × 10 cells)
+ * - Total grid width: 3520 pixels (320 × 11 columns)
  * - Each cell: 320 pixels wide, aspect ratio height
  * - zorder controls layering (0=background, 9=foreground)
  * - All sink pads are pre-configured during pipeline creation
@@ -89,7 +89,7 @@ Pipeline *pipeline_create(GstElement *camera_source_element);
  * Record bins are initially idle and start capturing when recording is triggered.
  *
  * @param p        Pipeline pointer
- * @param key_num  Key number (1-9); maps to record_bins[key_num-1]
+ * @param key_num  Key number (1-50); maps to record_bins[key_num-1]
  * @return         TRUE if bin added successfully, FALSE on failure
  */
 gboolean pipeline_add_record_bin(Pipeline *p, int key_num);
@@ -101,7 +101,7 @@ gboolean pipeline_add_record_bin(Pipeline *p, int key_num);
  * Safe to call even if bin was not previously added.
  *
  * @param p        Pipeline pointer
- * @param key_num  Key number (1-9)
+ * @param key_num  Key number (1-50)
  * @return         TRUE if bin removed successfully, FALSE on failure
  */
 gboolean pipeline_remove_record_bin(Pipeline *p, int key_num);
@@ -113,7 +113,7 @@ gboolean pipeline_remove_record_bin(Pipeline *p, int key_num);
  * Called after a recording completes to display the recorded video loop.
  *
  * @param p           Pipeline pointer
- * @param cell_num    Cell number (2-10, maps to videomixer pad 1-9)
+ * @param cell_num    Layer number (1-50)
  * @param duration_us Duration of recorded video in microseconds
  * @return            TRUE if bin added successfully, FALSE on failure
  */
@@ -125,7 +125,7 @@ gboolean pipeline_add_playback_bin(Pipeline *p, int cell_num, guint64 duration_u
  * Unlinks and removes a playback bin from the videomixer.
  *
  * @param p        Pipeline pointer
- * @param cell_num Cell number (2-10)
+ * @param cell_num Layer number (1-50)
  * @return         TRUE if bin removed successfully, FALSE on failure
  */
 gboolean pipeline_remove_playback_bin(Pipeline *p, int cell_num);
@@ -133,11 +133,11 @@ gboolean pipeline_remove_playback_bin(Pipeline *p, int cell_num);
 /**
  * Connect live preview to a cell while recording.
  *
- * Shows the live camera feed in the specified cell (2-10) while a key is held.
+ * Shows the live camera feed in the specified layer (1-50) while a key is held.
  * Creates a pipeline branch: tee → queue → videoconvert → videoscale → capsfilter → compositor
  *
  * @param p        Pipeline pointer
- * @param cell_num Cell number (2-10, maps to key_num + 1)
+ * @param cell_num Layer number (1-50)
  * @return         TRUE if preview connected successfully, FALSE on failure
  */
 gboolean pipeline_connect_live_preview(Pipeline *p, int cell_num);
@@ -149,7 +149,7 @@ gboolean pipeline_connect_live_preview(Pipeline *p, int cell_num);
  * The cell can then be used for playback.
  *
  * @param p        Pipeline pointer
- * @param cell_num Cell number (2-10)
+ * @param cell_num Layer number (1-50)
  * @return         TRUE if preview disconnected successfully, FALSE on failure
  */
 gboolean pipeline_disconnect_live_preview(Pipeline *p, int cell_num);

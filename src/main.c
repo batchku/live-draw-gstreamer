@@ -678,7 +678,7 @@ static int app_main(int argc, char *argv[], gpointer user_data)
     LOG_INFO("==================================");
     LOG_INFO("Application initialization complete");
     LOG_INFO("Ready for video looping");
-    LOG_INFO("Press 1-0 to record layers 1-10, Shift+1-0 for layers 11-20, Escape to quit");
+    LOG_INFO("Press 1-0 for layers 1-10, Shift for 11-20, Ctrl for 21-30, Option for 31-40, Cmd for 41-50, Escape to quit");
     LOG_INFO("==================================");
 
     /* Start the pipeline playing to display live video */

@@ -37,7 +37,7 @@ typedef struct {
  * Creates a native Cocoa NSWindow with the specified grid dimensions.
  * Window size is calculated as:
  * - Width: cell_width * grid_cols (320px * 11 = 3520px)
- * - Height: cell_width / aspect_ratio * grid_rows (320 / (16/9) * 2 = 360px)
+ * - Height: cell_width / aspect_ratio * grid_rows (320 / (16/9) * 5 = 900px)
  *
  * The window title is set to "Video Looper".
  * The window is positioned using macOS default positioning (cascade).

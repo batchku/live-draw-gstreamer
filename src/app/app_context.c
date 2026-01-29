@@ -22,8 +22,8 @@ AppContext *app_context_create(void)
     /* Initialize default values */
     ctx->target_fps = 120;
     ctx->grid_cols = 11;
-    ctx->grid_rows = 2;
-    ctx->total_layers = 20;
+    ctx->grid_rows = 5;
+    ctx->total_layers = 50;
     ctx->cell_width_px = 320;
     ctx->pipeline = NULL;
     ctx->bus = NULL;

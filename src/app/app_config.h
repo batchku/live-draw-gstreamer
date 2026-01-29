@@ -3,10 +3,10 @@
 
 /* Grid layout */
 #define GRID_COLS 11
-#define GRID_ROWS 2
+#define GRID_ROWS 5
 
 /* Layer configuration */
-#define TOTAL_LAYERS 20
+#define TOTAL_LAYERS 50
 #define LAYER_COLUMNS 10
 
 /* Cell sizing */

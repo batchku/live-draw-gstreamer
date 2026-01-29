@@ -71,17 +71,41 @@ static gboolean window_create_nswindow_internal(OSXWindow *win, CGFloat width, C
 - (void)keyDown:(NSEvent *)event {
   // Forward key press to keyboard handler
   unsigned short keyCode = [event keyCode];
-  BOOL isShifted = (event.modifierFlags & NSEventModifierFlagShift) != 0;
+  KeyModifierMask modifiers = 0;
+  if (event.modifierFlags & NSEventModifierFlagShift) {
+    modifiers |= KEY_MOD_SHIFT;
+  }
+  if (event.modifierFlags & NSEventModifierFlagControl) {
+    modifiers |= KEY_MOD_CTRL;
+  }
+  if (event.modifierFlags & NSEventModifierFlagOption) {
+    modifiers |= KEY_MOD_OPTION;
+  }
+  if (event.modifierFlags & NSEventModifierFlagCommand) {
+    modifiers |= KEY_MOD_CMD;
+  }
   LOG_DEBUG("keyDown: keyCode=%u", keyCode);
-  keyboard_on_event((int)keyCode, isShifted, TRUE);
+  keyboard_on_event((int)keyCode, modifiers, TRUE);
 }
 
 - (void)keyUp:(NSEvent *)event {
   // Forward key release to keyboard handler
   unsigned short keyCode = [event keyCode];
-  BOOL isShifted = (event.modifierFlags & NSEventModifierFlagShift) != 0;
+  KeyModifierMask modifiers = 0;
+  if (event.modifierFlags & NSEventModifierFlagShift) {
+    modifiers |= KEY_MOD_SHIFT;
+  }
+  if (event.modifierFlags & NSEventModifierFlagControl) {
+    modifiers |= KEY_MOD_CTRL;
+  }
+  if (event.modifierFlags & NSEventModifierFlagOption) {
+    modifiers |= KEY_MOD_OPTION;
+  }
+  if (event.modifierFlags & NSEventModifierFlagCommand) {
+    modifiers |= KEY_MOD_CMD;
+  }
   LOG_DEBUG("keyUp: keyCode=%u", keyCode);
-  keyboard_on_event((int)keyCode, isShifted, FALSE);
+  keyboard_on_event((int)keyCode, modifiers, FALSE);
 }
 
 @end

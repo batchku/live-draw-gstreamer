@@ -28,10 +28,10 @@
  */
 typedef struct {
     AppContext *app_ctx;        /* Reference to app context */
-    void *recording_buffers[20];   /* Buffers for layers 1-20 (indices 0-19) */
-    PlaybackBin *playback_bins[20]; /* Playback bins for layers 1-20 */
-    guint64 recording_start_times[20]; /* Start time for each recording */
-    gint active_recordings[20];        /* Which key is recording to each layer (-1 if none) */
+    void *recording_buffers[TOTAL_LAYERS];   /* Buffers for layers 1-50 */
+    PlaybackBin *playback_bins[TOTAL_LAYERS]; /* Playback bins for layers 1-50 */
+    guint64 recording_start_times[TOTAL_LAYERS]; /* Start time for each recording */
+    gint active_recordings[TOTAL_LAYERS];        /* Which key is recording to each layer (-1 if none) */
 } E2ECoordinator;
 
 /* Global coordinator instance */
@@ -74,7 +74,7 @@ gboolean e2e_coordinator_init(void *app_ctx_ptr)
     g_coordinator->app_ctx = app_ctx;
 
     /* Initialize all cells to empty/not-recording */
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < TOTAL_LAYERS; i++) {
         g_coordinator->recording_buffers[i] = NULL;
         g_coordinator->playback_bins[i] = NULL;
         g_coordinator->recording_start_times[i] = 0;
@@ -90,7 +90,7 @@ gboolean e2e_coordinator_init(void *app_ctx_ptr)
  */
 static void handle_key_press(int key_number)
 {
-    if (key_number < 1 || key_number > 20) {
+    if (key_number < 1 || key_number > TOTAL_LAYERS) {
         LOG_DEBUG("handle_key_press: Invalid key_number %d", key_number);
         return;
     }
@@ -154,7 +154,7 @@ static void handle_key_press(int key_number)
  */
 static void handle_key_release(int key_number)
 {
-    if (key_number < 1 || key_number > 20) {
+    if (key_number < 1 || key_number > TOTAL_LAYERS) {
         LOG_DEBUG("handle_key_release: Invalid key_number %d", key_number);
         return;
     }
@@ -323,7 +323,7 @@ void e2e_on_key_event(int key_number, gboolean is_pressed)
  */
 void *e2e_get_recording_buffer(int cell_num)
 {
-    if (cell_num < 1 || cell_num > 20) {
+    if (cell_num < 1 || cell_num > TOTAL_LAYERS) {
         LOG_ERROR("e2e_get_recording_buffer: Invalid layer %d", cell_num);
         return NULL;
     }
@@ -349,7 +349,7 @@ void e2e_coordinator_cleanup(void)
     LOG_DEBUG("Cleaning up E2E coordinator...");
 
     /* Clean up all playback bins */
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < TOTAL_LAYERS; i++) {
         if (g_coordinator->playback_bins[i]) {
             playback_bin_cleanup(g_coordinator->playback_bins[i]);
             g_coordinator->playback_bins[i] = NULL;
@@ -357,7 +357,7 @@ void e2e_coordinator_cleanup(void)
     }
 
     /* Clean up all recording buffers */
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < TOTAL_LAYERS; i++) {
         if (g_coordinator->recording_buffers[i]) {
             buffer_cleanup(g_coordinator->recording_buffers[i]);
             g_coordinator->recording_buffers[i] = NULL;

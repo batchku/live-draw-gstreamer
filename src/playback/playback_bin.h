@@ -22,6 +22,7 @@
 #define PLAYBACK_BIN_H
 
 #include "playback_manager.h"
+#include "../app/app_config.h"
 #include <gst/gst.h>
 
 /**
@@ -31,7 +32,7 @@
  * @appsrc: Application source element that pulls frames from PlaybackLoop
  * @queue: Queue element for buffering frames
  * @playback_loop: PlaybackLoop providing frames with palindrome state management
- * @cell_number: Layer number (1-20) for this playback
+ * @cell_number: Layer number (1-50) for this playback
  * @frame_count: Total frames emitted (for statistics)
  * @is_active: Boolean indicating if playback is currently running
  */
@@ -40,7 +41,7 @@ typedef struct {
     GstElement *appsrc;          /**< Application source element */
     GstElement *queue;           /**< Queue element for buffering */
     PlaybackLoop *playback_loop; /**< Palindrome playback state */
-    int cell_number;             /**< Layer (1-20) for this playback */
+    int cell_number;             /**< Layer (1-50) for this playback */
     guint frame_count;           /**< Total frames emitted */
     gboolean is_active;          /**< Playback active flag */
     GstClockTime next_pts;       /**< Monotonic PTS for playback */
@@ -57,7 +58,7 @@ typedef struct {
  * The bin is NOT added to the pipeline by this function.
  * The caller must add it to the pipeline using gst_bin_add().
  *
- * @param cell_number     Layer number (1-20) where this playback will display
+ * @param cell_number     Layer number (1-50) where this playback will display
  * @param buffer          RingBuffer containing recorded video frames
  * @param output_caps     GStreamer caps describing output format (must match videomixer)
  *

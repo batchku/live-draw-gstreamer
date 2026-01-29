@@ -11,12 +11,24 @@
 
 #include <glib.h>
 
+typedef guint KeyModifierMask;
+
+enum {
+    KEY_MOD_SHIFT  = 1u << 0,
+    KEY_MOD_CTRL   = 1u << 1,
+    KEY_MOD_OPTION = 1u << 2,
+    KEY_MOD_CMD    = 1u << 3,
+};
+
 /**
  * @brief Logical key numbers for video looping
  *
  * Maps physical keyboard keys to logical recording keys.
  * Keys 1-10 are used for recording video loops.
  * Shift+1-10 map to layers 11-20.
+ * Ctrl+1-10 map to layers 21-30.
+ * Option+1-10 map to layers 31-40.
+ * Command+1-10 map to layers 41-50.
  * Escape key is used for application quit.
  */
 typedef enum {
@@ -84,52 +96,79 @@ typedef enum {
  * Mapping rules:
  * - Physical keys 1-9 map to logical key numbers 1-9
  * - Physical key 0 maps to logical key number 10
- * - Shift+1-9 map to logical key numbers 11-19
- * - Shift+0 maps to logical key number 20
+ * - Shift+1-0 map to logical key numbers 11-20
+ * - Ctrl+1-0 map to logical key numbers 21-30
+ * - Option+1-0 map to logical key numbers 31-40
+ * - Command+1-0 map to logical key numbers 41-50
  * - Escape key maps to KEY_QUIT (-1)
  * - All other keys map to KEY_UNKNOWN (0)
  *
  * @param physical_key_code The physical key code from the OS/windowing system
- * @param is_shifted TRUE if shift modifier is active
- * @return Logical key number (1-20 for recording, -1 for quit, 0 for unknown)
+ * @param modifiers Modifier mask (KEY_MOD_*)
+ * @return Logical key number (1-50 for recording, -1 for quit, 0 for unknown)
  *
  * @note This function is called from the keyboard event handler for each
  *       key press or release event.
  */
-static inline LogicalKeyNumber key_code_to_logical_key(int physical_key_code, gboolean is_shifted)
+static inline LogicalKeyNumber key_code_to_logical_key(int physical_key_code,
+                                                       KeyModifierMask modifiers)
 {
+    int base_number = 0;
     switch (physical_key_code) {
     case KEYCODE_1:
-        return is_shifted ? KEY_NUM_11 : KEY_NUM_1;
+        base_number = 1;
+        break;
     case KEYCODE_2:
-        return is_shifted ? KEY_NUM_12 : KEY_NUM_2;
+        base_number = 2;
+        break;
     case KEYCODE_3:
-        return is_shifted ? KEY_NUM_13 : KEY_NUM_3;
+        base_number = 3;
+        break;
     case KEYCODE_4:
-        return is_shifted ? KEY_NUM_14 : KEY_NUM_4;
+        base_number = 4;
+        break;
     case KEYCODE_5:
-        return is_shifted ? KEY_NUM_15 : KEY_NUM_5;
+        base_number = 5;
+        break;
     case KEYCODE_6:
-        return is_shifted ? KEY_NUM_16 : KEY_NUM_6;
+        base_number = 6;
+        break;
     case KEYCODE_7:
-        return is_shifted ? KEY_NUM_17 : KEY_NUM_7;
+        base_number = 7;
+        break;
     case KEYCODE_8:
-        return is_shifted ? KEY_NUM_18 : KEY_NUM_8;
+        base_number = 8;
+        break;
     case KEYCODE_9:
-        return is_shifted ? KEY_NUM_19 : KEY_NUM_9;
+        base_number = 9;
+        break;
     case KEYCODE_0:
-        return is_shifted ? KEY_NUM_20 : KEY_NUM_10;
+        base_number = 10;
+        break;
     case KEYCODE_ESCAPE:
         return KEY_QUIT;
     default:
         return KEY_UNKNOWN;
     }
+
+    int offset = 0;
+    if (modifiers & KEY_MOD_CMD) {
+        offset = 40;
+    } else if (modifiers & KEY_MOD_OPTION) {
+        offset = 30;
+    } else if (modifiers & KEY_MOD_CTRL) {
+        offset = 20;
+    } else if (modifiers & KEY_MOD_SHIFT) {
+        offset = 10;
+    }
+
+    return (LogicalKeyNumber)(base_number + offset);
 }
 
 /**
  * @brief Check if a logical key number is a valid recording key
  *
- * Recording keys are logical keys 1-20. Returns false for quit key
+ * Recording keys are logical keys 1-50. Returns false for quit key
  * and unknown keys.
  *
  * @param key_number Logical key number to check
@@ -137,7 +176,7 @@ static inline LogicalKeyNumber key_code_to_logical_key(int physical_key_code, gb
  */
 static inline gboolean key_is_recording_key(LogicalKeyNumber key_number)
 {
-    return key_number >= KEY_NUM_1 && key_number <= KEY_NUM_20;
+    return key_number >= KEY_NUM_1 && key_number <= (KEY_NUM_10 + 40);
 }
 
 /**
