@@ -108,6 +108,10 @@ static void handle_key_press(int key_number)
 
     LOG_DEBUG("handle_key_press: Key %d pressed, starting recording", key_number);
 
+    if (recording_is_recording(rec_state, key_number)) {
+        return;
+    }
+
     /* Mark the key as recording in the recording state manager */
     recording_on_key_press(rec_state, key_number);
 
@@ -123,13 +127,40 @@ static void handle_key_press(int key_number)
         return;
     }
 
-    /* Create record bin on-demand if it doesn't exist */
-    if (!pipeline->record_bins[key_index]) {
-        LOG_DEBUG("handle_key_press: Creating record bin for key %d", key_number);
-        if (!pipeline_add_record_bin(pipeline, key_number)) {
-            LOG_ERROR("handle_key_press: Failed to create record bin for key %d", key_number);
-            return;
+    /* If this layer already has playback, remove it before recording again */
+    if (g_coordinator->playback_bins[key_index]) {
+        PlaybackBin *existing = g_coordinator->playback_bins[key_index];
+        if (existing->bin) {
+            GstPad *src_pad = gst_element_get_static_pad(existing->bin, "src");
+            if (src_pad) {
+                GstPad *peer_pad = gst_pad_get_peer(src_pad);
+                if (peer_pad) {
+                    gst_pad_unlink(src_pad, peer_pad);
+                    gst_element_release_request_pad(pipeline->videomixer, peer_pad);
+                    gst_object_unref(peer_pad);
+                }
+                gst_object_unref(src_pad);
+            }
+
+            gst_element_set_state(existing->bin, GST_STATE_NULL);
+            gst_bin_remove(GST_BIN(pipeline->pipeline), existing->bin);
         }
+        playback_bin_cleanup(existing);
+        g_coordinator->playback_bins[key_index] = NULL;
+    }
+
+    if (g_coordinator->recording_buffers[key_index]) {
+        buffer_cleanup(g_coordinator->recording_buffers[key_index]);
+        g_coordinator->recording_buffers[key_index] = NULL;
+    }
+
+    /* Recreate record bin to ensure a fresh ring buffer */
+    if (pipeline->record_bins[key_index]) {
+        pipeline_remove_record_bin(pipeline, key_number);
+    }
+    if (!pipeline_add_record_bin(pipeline, key_number)) {
+        LOG_ERROR("handle_key_press: Failed to create record bin for key %d", key_number);
+        return;
     }
 
     /* Start capturing on the record bin */
