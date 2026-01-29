@@ -1,0 +1,60 @@
+# Build artifacts
+/build/
+/meson-private/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# Compiled binaries
+/video-looper
+*.out
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.clangd
+
+# Profiling and debugging
+*.perf
+*.callgrind
+*.cachegrind
+gmon.out
+perf.data
+perf.data.old
+massif.out.*
+*.log
+
+# Test coverage
+coverage.html
+coverage/
+*.gcda
+*.gcno
+.coverage
+
+# Dependency files
+*.a
+*.so
+
+# macOS specific
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.venv
+venv/
+
+# Meson private files
+meson-private/

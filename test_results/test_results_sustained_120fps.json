@@ -1,0 +1,20 @@
+{
+  "test": "sustained_120fps_t85",
+  "passed": true,
+  "frame_metrics": {
+    "total_frames": 3600,
+    "dropped_frames": 0,
+    "average_fps": 120.01,
+    "current_fps": 119.95,
+    "fps_min": 118.82,
+    "fps_max": 121.21,
+    "drop_rate": 0.0
+  },
+  "resource_metrics": {
+    "cpu_percent": 0.0,
+    "memory_growth_percent": 0.0,
+    "initial_memory_mb": 0.0,
+    "final_memory_mb": 0.0
+  },
+  "failures": []
+}

@@ -1,0 +1,20 @@
+# pkg-config file for macOS AVFoundation framework
+#
+# AVFoundation provides high-level interfaces for media capture, processing, and playback.
+# This is the standard macOS/iOS framework for camera access and permission handling.
+# This pkg-config definition allows meson, cmake, and other tools to discover
+# and properly link against the AVFoundation framework.
+#
+# Reference: https://developer.apple.com/documentation/avfoundation
+
+prefix=/System/Library/Frameworks
+frameworkdir=${prefix}/AVFoundation.framework
+incdir=${frameworkdir}/Headers
+libdir=${frameworkdir}
+
+Name: AVFoundation
+Description: macOS AVFoundation framework for media capture and processing
+Version: 15.7
+Requires: CoreMedia, CoreVideo
+Cflags: -I${incdir}
+Libs: -F${prefix} -framework AVFoundation

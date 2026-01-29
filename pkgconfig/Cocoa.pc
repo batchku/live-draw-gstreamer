@@ -1,0 +1,18 @@
+# pkg-config file for macOS Cocoa framework
+#
+# The Cocoa framework provides native macOS window management and UI integration.
+# This pkg-config definition allows meson, cmake, and other tools to discover
+# and properly link against the Cocoa framework.
+#
+# Reference: https://developer.apple.com/documentation/appkit/cocoa
+
+prefix=/System/Library/Frameworks
+frameworkdir=${prefix}/Cocoa.framework
+incdir=${frameworkdir}/Headers
+libdir=${frameworkdir}
+
+Name: Cocoa
+Description: macOS Cocoa framework for native application development
+Version: 15.7
+Cflags: -I${incdir} -fno-objc-arc
+Libs: -F${prefix} -framework Cocoa

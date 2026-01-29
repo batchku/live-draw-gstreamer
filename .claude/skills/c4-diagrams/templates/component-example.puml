@@ -1,0 +1,59 @@
+@startuml
+title C4 Component Diagram - E-commerce Order Processing
+
+' Container: Order Processing Service
+package "Order Processing Service" {
+
+  ' Components
+  component "Order Controller" as OrderCtrl
+  component "Order Service" as OrderSvc
+  component "Payment Service" as PaymentSvc
+  component "Inventory Service" as InventorySvc
+  component "Notification Service" as NotifySvc
+  component "Order Repository" as OrderRepo
+
+  ' Interfaces
+  interface "REST API" as RestAPI
+  interface "Order Events" as OrderEvents
+
+  ' Component relationships
+  OrderCtrl -up- RestAPI : provides
+  OrderCtrl --> OrderSvc : uses
+  OrderSvc --> PaymentSvc : processes payment via
+  OrderSvc --> InventorySvc : checks stock via
+  OrderSvc --> NotifySvc : sends notifications via
+  OrderSvc --> OrderRepo : persists orders via
+  OrderSvc -down- OrderEvents : publishes
+}
+
+' External dependencies
+database "Order Database\n[PostgreSQL]" as OrderDB
+queue "Message Queue\n[RabbitMQ]" as MQ
+component "Payment Gateway\n[Stripe]" as PaymentGW
+component "Email Service\n[SendGrid]" as EmailSvc
+
+' External relationships
+OrderRepo --> OrderDB : reads/writes [JDBC]
+NotifySvc --> MQ : publishes to [AMQP]
+PaymentSvc --> PaymentGW : calls [HTTPS]
+NotifySvc --> EmailSvc : sends via [API]
+
+' Notes
+note right of OrderCtrl
+  Entry point for order requests
+  Validates input
+  Returns order status
+end note
+
+note bottom of OrderSvc
+  Orchestrates order processing
+  Implements business logic
+  Manages transactions
+end note
+
+note left of OrderRepo
+  Data access layer
+  Implements persistence
+end note
+
+@enduml

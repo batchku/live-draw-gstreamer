@@ -1,0 +1,18 @@
+# pkg-config file for macOS CoreVideo framework
+#
+# CoreVideo provides low-level video frame management and GPU memory handling.
+# Essential for efficient video processing on GPU without CPU transfers.
+#
+# Reference: https://developer.apple.com/documentation/corevideo
+
+prefix=/System/Library/Frameworks
+frameworkdir=${prefix}/CoreVideo.framework
+incdir=${frameworkdir}/Headers
+libdir=${frameworkdir}
+
+Name: CoreVideo
+Description: macOS CoreVideo framework for video frame handling
+Version: 15.7
+Requires: CoreFoundation
+Cflags: -I${incdir}
+Libs: -F${prefix} -framework CoreVideo

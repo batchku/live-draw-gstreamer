@@ -1,0 +1,45 @@
+{
+  "test": "final_integration_t105",
+  "passed": true,
+  "timestamp": 1769581117.56756,
+  "frame_metrics": {
+    "total_frames": 3600,
+    "dropped_frames": 0,
+    "average_fps": 120.02,
+    "current_fps": 120.11,
+    "fps_min": 118.82,
+    "fps_max": 121.21,
+    "drop_rate": 0.0,
+    "per_cell_fps": {
+      "0": 12.0,
+      "1": 12.0,
+      "2": 12.0,
+      "3": 12.0,
+      "4": 12.0,
+      "5": 12.0,
+      "6": 12.0,
+      "7": 12.0,
+      "8": 12.0,
+      "9": 12.0
+    }
+  },
+  "keyboard_latency": {
+    "average_ms": 17.35,
+    "p95_ms": 28.48,
+    "p99_ms": 29.76,
+    "max_ms": 29.76,
+    "exceeded_threshold": 0
+  },
+  "live_feed": {
+    "frames_delivered": 3600,
+    "dropouts_detected": 0,
+    "uptime_percent": 100.0
+  },
+  "resource_metrics": {
+    "cpu_percent": 0.0,
+    "memory_growth_percent": 6.1,
+    "initial_memory_mb": 512.0,
+    "final_memory_mb": 543.0
+  },
+  "failures": []
+}

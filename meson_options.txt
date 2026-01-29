@@ -1,0 +1,21 @@
+# Build options for Video Looper
+# Note: buildtype, warning_level, and werror are reserved Meson options
+# and configured in meson.build instead
+
+option('enable_tests',
+  type: 'boolean',
+  value: true,
+  description: 'Build and run tests'
+)
+
+option('enable_profiling',
+  type: 'boolean',
+  value: false,
+  description: 'Enable profiling support (adds -pg flag)'
+)
+
+option('gstreamer_version',
+  type: 'string',
+  value: '1.20',
+  description: 'Minimum required GStreamer version'
+)

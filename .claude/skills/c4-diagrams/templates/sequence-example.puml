@@ -1,0 +1,81 @@
+@startuml
+title C4 Code Diagram - Order Processing Sequence
+
+' Participants
+actor Customer
+participant "Web UI" as UI
+participant "OrderController" as Controller
+participant "OrderService" as Service
+participant "InventoryService" as Inventory
+participant "PaymentService" as Payment
+participant "NotificationService" as Notification
+participant "OrderRepository" as Repo
+database "Database" as DB
+queue "Message Queue" as MQ
+
+' Main flow
+Customer -> UI : Place order
+activate UI
+
+UI -> Controller : POST /orders
+activate Controller
+
+Controller -> Service : createOrder(orderRequest)
+activate Service
+
+' Check inventory
+Service -> Inventory : checkAvailability(items)
+activate Inventory
+Inventory --> Service : available
+deactivate Inventory
+
+' Process payment
+Service -> Payment : processPayment(amount, paymentInfo)
+activate Payment
+Payment --> Service : paymentConfirmed
+deactivate Payment
+
+' Save order
+Service -> Repo : save(order)
+activate Repo
+Repo -> DB : INSERT INTO orders...
+activate DB
+DB --> Repo : order saved
+deactivate DB
+Repo --> Service : Order entity
+deactivate Repo
+
+' Send notification
+Service -> Notification : sendOrderConfirmation(order)
+activate Notification
+Notification -> MQ : publish(OrderCreatedEvent)
+activate MQ
+MQ --> Notification : acknowledged
+deactivate MQ
+Notification --> Service : notification sent
+deactivate Notification
+
+Service --> Controller : Order response
+deactivate Service
+
+Controller --> UI : 201 Created (order details)
+deactivate Controller
+
+UI --> Customer : Order confirmation
+deactivate UI
+
+' Alternative flow - payment failure
+group Payment Failure
+  Customer -> UI : Place order (insufficient funds)
+  UI -> Controller : POST /orders
+  Controller -> Service : createOrder(orderRequest)
+  Service -> Inventory : checkAvailability(items)
+  Inventory --> Service : available
+  Service -> Payment : processPayment(amount, paymentInfo)
+  Payment --> Service : paymentFailed
+  Service --> Controller : PaymentException
+  Controller --> UI : 402 Payment Required
+  UI --> Customer : Payment failed message
+end
+
+@enduml

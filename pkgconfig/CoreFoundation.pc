@@ -1,0 +1,17 @@
+# pkg-config file for macOS CoreFoundation framework
+#
+# CoreFoundation is a fundamental framework providing basic data structures
+# and utilities used throughout macOS. Many frameworks depend on CoreFoundation.
+#
+# Reference: https://developer.apple.com/documentation/corefoundation
+
+prefix=/System/Library/Frameworks
+frameworkdir=${prefix}/CoreFoundation.framework
+incdir=${frameworkdir}/Headers
+libdir=${frameworkdir}
+
+Name: CoreFoundation
+Description: macOS CoreFoundation framework for fundamental services
+Version: 15.7
+Cflags: -I${incdir}
+Libs: -F${prefix} -framework CoreFoundation

@@ -1,0 +1,18 @@
+# pkg-config file for macOS CoreMedia framework
+#
+# CoreMedia provides low-level media data types and APIs.
+# Used by AVFoundation for efficient video/audio frame handling.
+#
+# Reference: https://developer.apple.com/documentation/coremedia
+
+prefix=/System/Library/Frameworks
+frameworkdir=${prefix}/CoreMedia.framework
+incdir=${frameworkdir}/Headers
+libdir=${frameworkdir}
+
+Name: CoreMedia
+Description: macOS CoreMedia framework for media data structure handling
+Version: 15.7
+Requires: CoreFoundation
+Cflags: -I${incdir}
+Libs: -F${prefix} -framework CoreMedia
